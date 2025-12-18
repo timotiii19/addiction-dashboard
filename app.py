@@ -84,7 +84,7 @@ st.sidebar.markdown(f"""
 
 ### 👨‍🏫 Info
 **Name:** Timothy A. Talagtag  
-**Yr * Sec:** BSIT-3A  
+**Yr & Sec:** BSIT-3A  
 **Instructor:** Engr. Val Patrick Fabregas  
 **Topic:** Addiction Rehabilitation Success Metrics: Visualizing relapse vs. recovery rates in rehab centers.
 """)
