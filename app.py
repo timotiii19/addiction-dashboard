@@ -12,6 +12,23 @@ st.set_page_config(
 )
 
 # ==========================================
+# CONSTANTS: BLUE SHADES COLOR PALETTE
+# ==========================================
+# We use a monochromatic blue scale for a clean, clinical look
+SUCCESS_BLUE = "#5DADE2"   # Bright Sky Blue (Recovery)
+RISK_NAVY = "#1B4F72"      # Deep Navy Blue (Relapse)
+NEUTRAL_BLUE = "#AED6F1"   # Very Light Blue (Secondary)
+LINE_BLUE = "#2E86C1"      # Strong Mid-Blue (Trends)
+
+# Shades for categories (Age, Regions, Drugs)
+BLUE_SHADES = ["#D6EAF8", "#AED6F1", "#85C1E9", "#5DADE2", "#3498DB", "#2E86C1", "#2874A6", "#21618C"]
+
+OUTCOME_COLORS = {
+    "✅ Successful Recovery": SUCCESS_BLUE,
+    "🚨 Relapse Risk": RISK_NAVY
+}
+
+# ==========================================
 # 2. DATA LOADING & ENGINEERING
 # ==========================================
 @st.cache_data
@@ -29,9 +46,9 @@ def load_all_datasets():
         if x["Withdrawal_Symptoms"] == "No" and x["Denial_and_Resistance_to_Treatment"] == "No"
         else "🚨 Relapse Risk", axis=1
     )
-    # Severity Score (Sum of behavioral indicators)
-    risk_cols = ['Social_Isolation', 'Financial_Issues', 'Legal_Consequences', 'Relationship_Strain', 'Risk_Taking_Behavior']
-    global_df['Severity'] = global_df[risk_cols].apply(lambda x: (x == 'Yes').sum(), axis=1)
+    # Severity Score
+    cols = ['Social_Isolation', 'Financial_Issues', 'Legal_Consequences', 'Relationship_Strain', 'Risk_Taking_Behavior']
+    global_df['Severity'] = global_df[cols].apply(lambda x: (x == 'Yes').sum(), axis=1)
 
     # --- B. LOCAL DATA (DDB Philippines Admissions 2018-2024) ---
     ddb_trend_csv = """Year,Total_Admissions,New_Admissions,Readmitted_Relapse,Outpatient
@@ -60,7 +77,7 @@ Cannabis (Marijuana),24.96
 Cocaine,0.53"""
     drug_df = pd.read_csv(io.StringIO(ddb_drug_csv))
 
-    # Age Group Distribution
+    # Age Groups
     ddb_age_csv = """Age_Group,Community_Rehab_Percent,TRC_Rehab_Percent
 Age 18–24,12.7,22.3
 Age 25–34,28.3,37.6
@@ -73,7 +90,7 @@ Age 45+,25.1,11.9"""
 global_df, trend_df, demog_df, drug_df, age_df = load_all_datasets()
 
 # ==========================================
-# 3. SIDEBAR (Your Info & Sources)
+# 3. SIDEBAR (Your Info)
 # ==========================================
 st.sidebar.markdown(f"""
 ### 🔗 Data Sources
@@ -102,7 +119,6 @@ tab1, tab2 = st.tabs(["🇵🇭 LOCAL INSIGHTS (DDB Philippines)", "🌏 GLOBAL 
 # ------------------------------------------
 with tab1:
     latest = trend_df.iloc[-1]
-    # Metrics Header
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("National Admissions (2024)", f"{latest['Total_Admissions']:,}")
     m2.metric("New Admissions", f"{latest['New_Admissions']:,}")
@@ -116,15 +132,18 @@ with tab1:
     with lc1:
         st.subheader("📈 Admission vs. Relapse Trend")
         fig1 = px.line(trend_df, x="Year", y=["Total_Admissions", "Readmitted_Relapse"], 
-                       markers=True, title="PH Longitudinal Trend (2018-2024)")
+                       markers=True, title="PH Longitudinal Trend (2018-2024)",
+                       color_discrete_map={"Total_Admissions": LINE_BLUE, "Readmitted_Relapse": RISK_NAVY})
         st.plotly_chart(fig1, use_container_width=True)
     with lc2:
         st.subheader("🏢 Socio-Economic Profile (2024)")
-        fig2 = px.bar(demog_df, x="Category", y="Percentage", color="Category", title="Employment Status")
+        fig2 = px.bar(demog_df, x="Category", y="Percentage", color="Category", 
+                      color_discrete_sequence=BLUE_SHADES, title="Employment Status")
         st.plotly_chart(fig2, use_container_width=True)
     with lc3:
         st.subheader("💊 Primary Substances of Abuse")
-        fig3 = px.pie(drug_df, names="Drug", values="Prevalence", hole=0.5, title="Main Drugs Reported")
+        fig3 = px.pie(drug_df, names="Drug", values="Prevalence", hole=0.5, 
+                      color_discrete_sequence=BLUE_SHADES, title="Main Drugs Reported")
         st.plotly_chart(fig3, use_container_width=True)
 
     # LOCAL Row 2
@@ -132,18 +151,21 @@ with tab1:
     with lc4:
         st.subheader("👥 Age Group Distribution")
         fig4 = px.bar(age_df, x="Age_Group", y=["Community_Rehab_Percent", "TRC_Rehab_Percent"],
-                      barmode="group", title="Age Profile: Community vs. TRC")
+                      barmode="group", color_discrete_sequence=[SUCCESS_BLUE, RISK_NAVY],
+                      title="Age Profile by Rehab Type")
         st.plotly_chart(fig4, use_container_width=True)
     with lc5:
         st.subheader("📍 Regional Admission (2024)")
         regions = pd.DataFrame({"Region": ["NCR", "Region III", "Region IV-A", "Others"], "Value": [26.6, 12.9, 11.2, 49.3]})
-        fig5 = px.bar(regions, x="Value", y="Region", orientation='h', color="Region", title="Top Regional Admissions")
+        fig5 = px.bar(regions, x="Value", y="Region", orientation='h', color="Region", 
+                      color_discrete_sequence=BLUE_SHADES, title="Top Regional Admissions")
         st.plotly_chart(fig5, use_container_width=True)
     with lc6:
         st.subheader("🏥 Treatment Setting Ratio")
         labels = ['Residential', 'Outpatient']
         values = [latest['Total_Admissions'] - latest['Outpatient'], latest['Outpatient']]
-        fig6 = px.pie(names=labels, values=values, title="Treatment Facility Type Split")
+        fig6 = px.pie(names=labels, values=values, color_discrete_sequence=[RISK_NAVY, NEUTRAL_BLUE],
+                      title="Treatment Facility Type Split")
         st.plotly_chart(fig6, use_container_width=True)
 
 # ------------------------------------------
@@ -163,33 +185,35 @@ with tab2:
     with gc1:
         st.subheader("📊 Recovery Outcome Distribution")
         fig7 = px.pie(global_df, names="Rehab_Outcome", color="Rehab_Outcome", 
-                      color_discrete_map={"✅ Successful Recovery": "#27AE60", "🚨 Relapse Risk": "#E74C3C"})
+                      color_discrete_map=OUTCOME_COLORS)
         st.plotly_chart(fig7, use_container_width=True)
     with gc2:
         st.subheader("🧠 Denial & Resistance to Treatment")
-        fig8 = px.histogram(global_df, x="Denial_and_Resistance_to_Treatment", color="Rehab_Outcome", barmode="group",
-                            color_discrete_map={"✅ Successful Recovery": "#27AE60", "🚨 Relapse Risk": "#E74C3C"})
+        fig8 = px.histogram(global_df, x="Denial_and_Resistance_to_Treatment", color="Rehab_Outcome", 
+                            barmode="group", color_discrete_map=OUTCOME_COLORS)
         st.plotly_chart(fig8, use_container_width=True)
     with gc3:
         st.subheader("🏚️ Social Isolation & Relapse Risk")
-        fig9 = px.bar(global_df, x="Social_Isolation", color="Rehab_Outcome", barmode="group",
-                      color_discrete_map={"✅ Successful Recovery": "#27AE60", "🚨 Relapse Risk": "#E74C3C"})
+        fig9 = px.bar(global_df, x="Social_Isolation", color="Rehab_Outcome", 
+                      barmode="group", color_discrete_map=OUTCOME_COLORS)
         st.plotly_chart(fig9, use_container_width=True)
 
     # GLOBAL Row 2
     gc4, gc5, gc6 = st.columns(3)
     with gc4:
         st.subheader("📉 Relationship Strain Frequency")
-        fig10 = px.pie(global_df, names="Relationship_Strain", title="Impact on Social Relationships")
+        fig10 = px.pie(global_df, names="Relationship_Strain", 
+                       color_discrete_sequence=BLUE_SHADES[::-1], title="Impact on Social Bonds")
         st.plotly_chart(fig10, use_container_width=True)
     with gc5:
         st.subheader("💸 Financial Issues vs. Recovery")
-        fig11 = px.histogram(global_df, x="Financial_Issues", color="Rehab_Outcome", barmode="group",
-                             color_discrete_map={"✅ Successful Recovery": "#27AE60", "🚨 Relapse Risk": "#E74C3C"})
+        fig11 = px.histogram(global_df, x="Financial_Issues", color="Rehab_Outcome", 
+                             barmode="group", color_discrete_map=OUTCOME_COLORS)
         st.plotly_chart(fig11, use_container_width=True)
     with gc6:
         st.subheader("⚖️ Legal Consequences Count")
-        fig12 = px.bar(global_df, x="Legal_Consequences", color="Addiction_Class", title="Drug-Related Legal Incidents")
+        fig12 = px.bar(global_df, x="Legal_Consequences", color="Addiction_Class", 
+                       color_discrete_sequence=[NEUTRAL_BLUE, RISK_NAVY], title="Drug-Related Legal Issues")
         st.plotly_chart(fig12, use_container_width=True)
 
     # GLOBAL Last Row (Full Width)
@@ -198,7 +222,7 @@ with tab2:
     trend_data = global_df['Severity'].value_counts().sort_index().reset_index()
     trend_data.columns = ['Risk_Factors_Count', 'Student_Count']
     fig13 = px.line(trend_data, x="Risk_Factors_Count", y="Student_Count", markers=True, 
-                    title="Volume of Cases by Cumulative Risk Factors")
+                    title="Volume of Cases by Cumulative Risk Factors", color_discrete_sequence=[LINE_BLUE])
     st.plotly_chart(fig13, use_container_width=True)
 
 # ==========================================
